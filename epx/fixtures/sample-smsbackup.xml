@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
+<!--File Created By SMS Backup & Restore v6.40 on 03/08/2016 19:24:25-->
+<?xml-stylesheet type="text/xsl" href="sms.xsl"?>
+<smses count="2">
+  <sms protocol="0" address="AirtelERC" date="1470248525186" type="1" subject="null" body="Msg:ERC PIN(s):6673347746062494,6159625120254922,6186892456912475,6220427192339577,6738008238122646, Value:100 Qty:5 To recharge Dial *126*PIN# for voice or *143*PIN# for data &amp; press OK" toa="null" sc_toa="null" service_center="+2348020005009" read="1" status="-1" locked="0" date_sent="null" readable_date="Aug 3, 2016 7:22:05 PM" contact_name="(Unknown)" />
+  <sms protocol="0" address="AirtelERC" date="1470248620500" type="1" subject="null" body="Msg:ERC PIN(s):6206885633287529,6652226243427322,6123310932917445,6706232092000002,6098238800115102, Value:100 Qty:5 To recharge Dial *126*PIN# for voice or *143*PIN# for data &amp; press OK" toa="null" sc_toa="null" service_center="+2348020005053" read="1" status="-1" locked="0" date_sent="null" readable_date="Aug 3, 2016 7:23:40 PM" contact_name="(Unknown)" />
+</smses>
