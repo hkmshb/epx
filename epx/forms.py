@@ -1,9 +1,11 @@
 """
 Defines the forms that represents the GUI for ePinXtractr.
 """
+import os
 import epx
 from tkinter import *
 from tkinter.ttk import *
+from tkinter.filedialog import Directory
 
 
 
@@ -26,8 +28,8 @@ class ePinXtractr(object):
     def _init_widgets(self):
         # variables
         self.var_dirpath = StringVar()
-        self.dir_stats = StringVar()
-        self.ops_stats = StringVar()
+        self.var_dirstats = StringVar()
+        self.var_opsstats = StringVar()
 
         # row: 0
         Label(self.body, text="Directory to Process")\
@@ -37,46 +39,84 @@ class ePinXtractr(object):
         txt_dirpath = Entry(self.body, textvariable=self.var_dirpath)
         btn_browse = Button(self.body, text="Browse...")
 
-        txt_dirpath.grid(row=1, column=0, ipadx=2, ipady=2, padx=(0, 5))
+        txt_dirpath.grid(row=1, column=0, ipadx=2, ipady=2, padx=(0, 3))
         txt_dirpath.config(width=55, state=DISABLED)
         
-        btn_browse.grid(row=1, column=1)
         btn_browse.config(command=self._select_directory)
+        btn_browse.grid(row=1, column=1)
 
         # row: 2
         iframe2 = Frame(self.body)
-        self.dir_stats.set("...")
-        self.ops_stats.set("...")
-        iframe2.grid_columnconfigure(2, weight=1)
+        self.var_dirstats.set("...")
+        self.var_opsstats.set("...")
 
         iframe2.grid(row=3, column=0, columnspan=2, sticky='WE')
         Label(iframe2, text="Info: ").grid(row=0, column=0, sticky=W)
-        Label(iframe2, textvariable=self.dir_stats).grid(row=0, column=1)
-        Label(iframe2, textvariable=self.ops_stats, justify=RIGHT)\
-            .grid(row=0, column=2, padx=5, sticky=E)
+        Label(iframe2, textvariable=self.var_dirstats).grid(row=0, column=1)
+        Label(iframe2, textvariable=self.var_opsstats, justify=CENTER)\
+            .grid(row=0, column=2)
         
-        btn_about = Button(iframe2, text="?", command=self._show_about)
-        btn_about.config(width=1)
-        btn_about.grid(row=0, column=3, sticky=E)
+        btn_about = Button(iframe2, text='i', width=1)
+        btn_about.config(command=self._show_about)
+        btn_about.grid(row=0, column=3, padx=(0,1))
 
-        # non-displayed widgets
-        self.pbar = Progressbar(self.body)
-    
-    def _toggle_progressbar(self, show=True):
+        btn_help = Button(iframe2, text='?', width=1)
+        btn_help.config(command=self._show_help)
+        btn_help.grid(row=0, column=4)
+        iframe2.grid_columnconfigure(2, weight=1)
+
+        # row: 3
+        iframe3 = Frame(self.body)
+        self.pbar = Progressbar(iframe3)
+        #self.pbar.grid(row=0, column=0, ipady=1, padx=(0, 3), sticky='WE')
+
+        btn_process = Button(iframe3, text='Process', command=self._process)
+        btn_process.grid(row=0, column=1)
+        iframe3.grid_columnconfigure(0, weight=1)
+
+        # widget refs added to self
+        self.btn_process = btn_process
+        self.btn_browse = btn_browse
+        self.processbox = iframe3
+        
+    def _toggle_processbox(self, show=True):
         if show:
-            self.pbar.grid(row=2, column=0, pady=(5,2), columnspan=2, sticky='WE')
+            self.processbox.grid(row=2, column=0, pady=(3, 2), columnspan=2, sticky='WE')
         else:
-            self.pbar.grid_forget()
-
+            self.processbox.grid_forget()
+    
     def _select_directory(self):
-        if not self.pbar.grid_info():
-            self._toggle_progressbar()
-        else:
-            self._toggle_progressbar(False)
+        dirpath = Directory(self.root).show()
+        self.var_dirpath.set(dirpath)
+        if not dirpath:
+            return
+        
+        # get directory content details
+        detail_fmt = "sub-dirs: %s / files: %s / xmls: %s"
+        dirpath, dirnames, filenames = next(os.walk(dirpath))
+        xmlfiles = [f for f in filenames if f.endswith('.xml')]
+
+        self.var_dirstats.set(detail_fmt % (
+            len(dirnames), len(filenames), len(xmlfiles)))
+
+        if not self.processbox.grid_info():
+            self._toggle_processbox(True)
+        
+        # set process button state
+        self.btn_process.config(state=DISABLED if len(xmlfiles) == 0 else NORMAL)
+
+    def _cancel(self):
+        pass
+    
+    def _process(self):
+        pass
     
     def _show_about(self):
         window = AboutDialog(self.root)
         window.transient(self.root)
+    
+    def _show_help(self):
+        pass
 
 
 class AboutDialog(Toplevel):
