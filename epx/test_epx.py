@@ -99,7 +99,7 @@ class TestSNGen(object):
     def test_custom_serial_startswith_specified_timestamp(self):
         custom_datetime = datetime(2010, 1, 1, 13, 34)
         serial = SNGen(custom_datetime).current
-        assert serial.startswith(custom_datetime.strftime('%y%m%d%H'))
+        assert serial.startswith(custom_datetime.strftime(SNGen.TIMESTAMP_FORMAT))
     
     def test_custom_first_serial_endswith_specified_offset(self):
         offset = 2345

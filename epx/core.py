@@ -1,6 +1,8 @@
 """
 Defines the core objects for ePinXtractr.
 """
+import sys
+import json
 import shutil
 import os.path
 import xml.etree.ElementTree as ET
@@ -96,14 +98,15 @@ class SNGen(object):
     """
 
     MIN_SERIAL_LENGTH = 14
-    TIMESTAMP_LENGTH  = 10
+    TIMESTAMP_LENGTH  = 12
+    TIMESTAMP_FORMAT  = '%y%m%d%H%M%S'
 
-    def __init__(self, timestamp=datetime.now(), offset=1, length=20):
+    def __init__(self, timestamp=None, offset=1, length=20):
         if length < self.MIN_SERIAL_LENGTH:
             fmt = "Generated sequence length must be {} or more."
             raise ValueError(fmt.format(self.MIN_SERIAL_LENGTH))
 
-        self.timestamp = timestamp
+        self.timestamp = (timestamp or datetime.now())
         self._offset = offset or 1
         self._length = length
         self._current = None
@@ -112,10 +115,12 @@ class SNGen(object):
     
     @property
     def current(self):
-        if not self._gen:
-            self._gen = self.__make_iterator()
-            self._gen.__next__()
+        if not self._current:
+            return self.get()
         return self._current
+    
+    def get(self):
+        return next(self.__iter__())
     
     def __iter__(self):
         if not self._gen:
@@ -123,7 +128,7 @@ class SNGen(object):
         return self._gen
     
     def __make_iterator(self):
-        tstamp_str = self.timestamp.strftime('%y%m%d%H%M')
+        tstamp_str = self.timestamp.strftime(self.TIMESTAMP_FORMAT)
         pad_length = self._length - self.TIMESTAMP_LENGTH
         sn_format = '{}{:0>%s}' % pad_length
         
@@ -149,6 +154,8 @@ class HallowIndicator(object):
 class EPXEngine(object):
 
     EPIN_LINE_FORMAT = "{number},{serial},{value},00000,{today}"
+    REPORT_FILENAME = 'result.html'
+    EPINS_FILENAME = 'epins.txt'
 
     def __init__(self, target_ext='.xml'):
         self._target_ext = (target_ext or '.xml')
@@ -161,7 +168,7 @@ class EPXEngine(object):
         return self.__sngen
     
     @sngen.setter
-    def set_sngen(self, value):
+    def sngen(self, value):
         self.__sngen = value
 
     def parse(self, smsfile):
@@ -176,8 +183,17 @@ class EPXEngine(object):
     def process(self, dirpath, indicator=None):
         if not os.path.exists(dirpath):
             raise ValueError("Provided directory path doesn't exist.")
-
-        result = _(errors=[], failed=[], passed=[], lines=[])
+        
+        # remove target files
+        for name in [self.EPINS_FILENAME, self.REPORT_FILENAME]:
+            try:
+                fullpath = os.path.join(dirpath, name)
+                if os.path.exists(fullpath):
+                    os.remove(fullpath)
+            except:
+                pass
+            
+        result = _(dirpath=dirpath, errors=[], failed=[], passed=[], lines=[])
         pInd = (indicator or HallowIndicator())
         try:
             filenames = self._listdir(dirpath)
@@ -185,37 +201,47 @@ class EPXEngine(object):
         except Exception as ex:
             result.errors.append(_(filename=None, smsno=None, error=str(ex)))
         else:
+            first_flush = True
             for f in filenames:
-                passed = self._process_file(dirpath, f, result)
+                passed = self._process_file(f, result)
                 pInd.update(done=False, task_passed=passed)
                 if len(result.lines) >= 1000:
-                    self._flush_result(dirpath, result)
-            self._flush_result(dirpath, result)
+                    self._flush_result(result, first_flush)
+                    first_flush=False
+            self._flush_result(result, first_flush)
             pInd.update(done=True)
         return result
     
+    def write_report(self, result):
+        fullpath = os.path.join(result.dirpath, self.REPORT_FILENAME)
+        with open(fullpath, 'w') as f:
+            json.dump(result, f, indent=4)
+            f.flush()
+    
     def _format_epin(self, epin):
-        return self.EPIN_LINE_FORMAT\
+        line = self.EPIN_LINE_FORMAT\
                    .replace('{number}', epin.number)\
-                   .replace('{serial}', self.sngen.current)\
+                   .replace('{serial}', self.sngen.get())\
                    .replace('{value}', '{:0>7}00'.format(epin.value))\
                    .replace('{today}', self.sngen.timestamp.strftime('%d/%m/%Y'))
+        return line
     
-    def _flush_result(self, dirpath, result):
+    def _flush_result(self, result, first_flush):
+        dirpath = result.dirpath
         if result.lines:
-            fullpath = os.path.join(dirpath, 'epins.txt')
-            with open(fullpath, 'a') as f:
-                f.write('\r'.join(result.lines))
+            fullpath = os.path.join(dirpath, self.EPINS_FILENAME)
+            with open(fullpath, 'w' if first_flush else 'a') as f:
+                f.write('\n'.join(result.lines))
                 f.flush()
             result.lines = []
         
-        for label in ["passed", "failed"]:
+        for label in ["passed"]:
             if result[label]:
                 dirdest = os.path.join(dirpath, "_%s" % label)
                 self._move_files(result[label], dirpath, dirdest, result)
 
-    def _process_file(self, dirpath, filename, result):
-        passed = False
+    def _process_file(self, filename, result):
+        dirpath, passed = (result.dirpath, False)
         try:
             lines, smsno = ([], 1)
             for packt in self.parse(os.path.join(dirpath, filename)):
@@ -238,7 +264,7 @@ class EPXEngine(object):
         
         filenames = []
         for f in os.listdir(dirpath):
-            if target_ext:
+            if self._target_ext:
                 if not f.endswith(self._target_ext):
                     continue
             filenames.append(f)
@@ -259,4 +285,4 @@ class EPXEngine(object):
                 except Exception as ex:
                     err_msg = "Unable to move file. (Error: %s)"
                     result.errors.flush.append(err_msg % str(ex))
-        
+    
