@@ -12,6 +12,7 @@ from epx.core import EPXEngine
 
 
 TARGET_EXT = '.xml'
+ICON_NAME = 'epx.ico'
 
 
 class ePinXtractr(object):
@@ -19,6 +20,8 @@ class ePinXtractr(object):
 
     def __init__(self, root=None):
         super(ePinXtractr, self).__init__()
+        root.iconbitmap(os.path.join(epx.ASSET_DIR, ICON_NAME))
+
         root.title(self.TITLE)
         root.resizable(0, 0)
         self.root = root
@@ -184,6 +187,7 @@ class AboutDialog(Toplevel):
     
     def __init__(self, parent):
         super(AboutDialog, self).__init__(parent)
+        self.iconbitmap(os.path.join(epx.ASSET_DIR, ICON_NAME))
         self.parent = parent
         self._init_widgets()
         self._re_position()
