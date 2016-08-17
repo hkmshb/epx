@@ -7,11 +7,16 @@ from tkinter import *
 from tkinter.ttk import *
 from tkinter.filedialog import Directory
 
+from fysom import Fysom
+from epx.core import EPXEngine
+
+
+TARGET_EXT = '.xml'
 
 
 class ePinXtractr(object):
     TITLE = epx.__name__
-    
+
     def __init__(self, root=None):
         super(ePinXtractr, self).__init__()
         root.title(self.TITLE)
@@ -21,10 +26,11 @@ class ePinXtractr(object):
         self.body = Frame(root)
         self.body.grid(row=0, column=0, padx=10, pady=10)
         self._init_widgets()
+        self._define_fsm()
     
     def display(self):
         self.root.mainloop()
-
+    
     def _init_widgets(self):
         # variables
         self.var_dirpath = StringVar()
@@ -40,7 +46,7 @@ class ePinXtractr(object):
         btn_browse = Button(self.body, text="Browse...")
 
         txt_dirpath.grid(row=1, column=0, ipadx=2, ipady=2, padx=(0, 3))
-        txt_dirpath.config(width=55, state=DISABLED)
+        txt_dirpath.config(width=70, state=DISABLED)
         
         btn_browse.config(command=self._select_directory)
         btn_browse.grid(row=1, column=1)
@@ -70,7 +76,7 @@ class ePinXtractr(object):
         self.pbar = Progressbar(iframe3)
         #self.pbar.grid(row=0, column=0, ipady=1, padx=(0, 3), sticky='WE')
 
-        btn_process = Button(iframe3, text='Process', command=self._process)
+        btn_process = Button(iframe3, text='Process', command=self._manage_state)
         btn_process.grid(row=0, column=1)
         iframe3.grid_columnconfigure(0, weight=1)
 
@@ -78,7 +84,24 @@ class ePinXtractr(object):
         self.btn_process = btn_process
         self.btn_browse = btn_browse
         self.processbox = iframe3
-        
+    
+
+    def _define_fsm(self):
+        self._fsm = Fysom({
+            'initial': {'state': 'start', 'event':'init', 'defer':True},
+            'events': [
+                ('process', 'start', 'processing'),
+                ('cancel', 'processing', 'aborted'),
+                ('done', 'processing', 'finished'),
+                ('init', ['aborted', 'finished'], 'start'),
+            ],
+            'callbacks': {
+                'onprocess': self._on_process,
+                'oncancel': self._on_cancel,
+                'ondone': self._on_done,
+            }
+        })
+
     def _toggle_processbox(self, show=True):
         if show:
             self.processbox.grid(row=2, column=0, pady=(3, 2), columnspan=2, sticky='WE')
@@ -86,15 +109,19 @@ class ePinXtractr(object):
             self.processbox.grid_forget()
     
     def _select_directory(self):
+        self._cleanup_widgets()
+        if self._fsm.can('init'):
+            self._fsm.init()
+        
         dirpath = Directory(self.root).show()
         self.var_dirpath.set(dirpath)
         if not dirpath:
             return
         
         # get directory content details
-        detail_fmt = "sub-dirs: %s / files: %s / xmls: %s"
+        detail_fmt = "sub-dirs: %s / files: %s / sms-files: %s"
         dirpath, dirnames, filenames = next(os.walk(dirpath))
-        xmlfiles = [f for f in filenames if f.endswith('.xml')]
+        xmlfiles = [f for f in filenames if f.endswith(TARGET_EXT)]
 
         self.var_dirstats.set(detail_fmt % (
             len(dirnames), len(filenames), len(xmlfiles)))
@@ -108,15 +135,49 @@ class ePinXtractr(object):
     def _cancel(self):
         pass
     
-    def _process(self):
-        pass
-    
+    def _manage_state(self):
+        if self._fsm.isstate('start'):
+            self._fsm.process()
+        elif self._fsm.isstate('processing'):
+            self._fsm.cancel()
+        
     def _show_about(self):
         window = AboutDialog(self.root)
         window.transient(self.root)
     
     def _show_help(self):
         pass
+    
+    def _cleanup_widgets(self):
+        self.var_dirstats.set('...')
+        self.var_opsstats.set('...')
+        self.btn_process.config(state=DISABLED)
+        self.pbar.grid_forget()
+    
+    def _config_widget_for_result(self):
+        self.btn_browse.config(state=NORMAL)
+        self.btn_process.config(state=DISABLED, text="Process")
+    
+    def _on_process(self, e):
+        self.btn_browse.config(state=DISABLED)
+        self.btn_process.config(text='Cancel', state=NORMAL)
+        self.var_opsstats.set('processing...')
+        
+        engine = EPXEngine(TARGET_EXT)
+        result = engine.process(self.var_dirpath.get())
+        engine.write_report(result)
+
+        self.var_opsstats.set('done')
+        self._fsm.done(result=result)
+    
+    def _on_cancel(self, e):
+        self._config_widget_for_result()
+        self.var_opsstats.set('aborted!')
+    
+    def _on_done(self, e):
+        self._config_widget_for_result()
+        self.var_opsstats.set(
+            "[ p:%s / f:%s ]" % (len(e.result.passed), len(e.result.failed)))
 
 
 class AboutDialog(Toplevel):
@@ -155,7 +216,7 @@ class AboutDialog(Toplevel):
         }
 
     def _re_position(self):
-        self.geometry("+%d+%d" % (self.parent.winfo_rootx()+50,
+        self.geometry("+%d+%d" % (self.parent.winfo_rootx()+85,
                                   self.parent.winfo_rooty()+10))
         self.wait_visibility()
         self.grab_set()

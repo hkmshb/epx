@@ -2,16 +2,15 @@
 ePinXtractr launcher.
 """
 
+import os
 import sys
 import os.path
-import tkinter as tk
-
 
 
 BASE_DIR = os.path.dirname(__file__)
 sys.path.insert(0, BASE_DIR)
 
-
+import tkinter as tk
 from epx.forms import ePinXtractr, AboutDialog
 
 
