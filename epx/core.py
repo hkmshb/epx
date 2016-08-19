@@ -154,7 +154,7 @@ class HallowIndicator(object):
 class EPXEngine(object):
 
     EPIN_LINE_FORMAT = "{number},{serial},{value},00000,{today}"
-    REPORT_FILENAME = 'result.html'
+    REPORT_FILENAME = 'result.txt'
     EPINS_FILENAME = 'epins.txt'
 
     def __init__(self, target_ext='.xml'):
@@ -215,7 +215,32 @@ class EPXEngine(object):
     def write_report(self, result):
         fullpath = os.path.join(result.dirpath, self.REPORT_FILENAME)
         with open(fullpath, 'w') as f:
-            json.dump(result, f, indent=4)
+            f.write((
+                " ePinXtractr Extraction Report\n%(hr)s\n\n"
+                "Directory:  %(dirpath)s\n"
+                "File Count: %(file_count)s\n"
+                "Pass Count: %(pass_count)s\n"
+                "Fail Count: %(fail_count)s\n"
+                "\n%(hr)s\n\n"
+                "PASSED:\n*******\n"
+                "%(passed)s\n"
+                "\n%(hr)s\n\n"
+                "FAILED:\n*******\n"
+                "%(failed)s\n"
+                "\n%(hr)s\n\n"
+                "ERRORS:\n*******\n"
+                "%(errors)s\n"
+                "\n%(hr)s\n\n"
+            ) % {
+                'hr': ('=' * 70),
+                'dirpath': result.dirpath,
+                'file_count': len(result.passed) + len(result.failed),
+                'pass_count': len(result.passed),
+                'fail_count': len(result.failed),
+                'passed': (', '.join(result.passed) or '-'),
+                'failed': (', '.join(result.failed) or '-'),
+                'errors': ('\n\n'.join(result.errors) or '-')
+            })
             f.flush()
     
     def _format_epin(self, epin):

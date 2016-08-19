@@ -5,6 +5,7 @@ import os
 import epx
 from tkinter import *
 from tkinter.ttk import *
+from tkinter import messagebox
 from tkinter.filedialog import Directory
 
 from fysom import Fysom
@@ -165,7 +166,13 @@ class ePinXtractr(object):
         window.transient(self.root)
     
     def _show_help(self):
-        pass
+        doc_path = os.path.join(epx.BASE_DIR, '..', '..', 'help.html')
+        if not os.path.exists(doc_path):
+            messagebox.showinfo(self.TITLE, 'Help file not found.')
+            return
+        
+        import webbrowser
+        webbrowser.open(doc_path)
     
     def _cleanup_widgets(self):
         self.var_dirstats.set('...')
@@ -181,7 +188,7 @@ class ePinXtractr(object):
         self.btn_browse.config(state=DISABLED)
         self.pbar.grid(row=0, column=0, ipady=1, padx=(0, 3), sticky='WE')
         self.pbar.update()
-        
+
         self.btn_process.config(text='Cancel', state=NORMAL)
         self.var_opsstats.set('processing...')
         
