@@ -8,7 +8,7 @@ from tkinter.ttk import *
 from tkinter.filedialog import Directory
 
 from fysom import Fysom
-from epx.core import EPXEngine
+from epx.core import EPXEngine, HallowIndicator
 
 
 TARGET_EXT = '.xml'
@@ -17,6 +17,23 @@ ICON_PATH = './epx.ico'
 
 class ePinXtractr(object):
     TITLE = epx.__name__
+
+    class Indicator(HallowIndicator):
+        def __init__(self, pbar):
+            pbar.config(mode='determinate', value=0)
+            self._maximum = None
+            self._value = 1
+            self.pbar = pbar
+
+        def init(self, task_count=0, level=0):
+            self.pbar.config(maximum=task_count)
+            self._maximum = task_count
+        
+        def update(self, done=False, task_passed=None):
+            value = self._value + 1 if not done else self._maximum
+            self.pbar.config(value=value)
+            self.pbar.update()
+            self._value = value
 
     def __init__(self, root=None):
         super(ePinXtractr, self).__init__()
@@ -77,7 +94,6 @@ class ePinXtractr(object):
         # row: 3
         iframe3 = Frame(self.body)
         self.pbar = Progressbar(iframe3)
-        #self.pbar.grid(row=0, column=0, ipady=1, padx=(0, 3), sticky='WE')
 
         btn_process = Button(iframe3, text='Process', command=self._manage_state)
         btn_process.grid(row=0, column=1)
@@ -163,13 +179,17 @@ class ePinXtractr(object):
     
     def _on_process(self, e):
         self.btn_browse.config(state=DISABLED)
+        self.pbar.grid(row=0, column=0, ipady=1, padx=(0, 3), sticky='WE')
+        self.pbar.update()
+        
         self.btn_process.config(text='Cancel', state=NORMAL)
         self.var_opsstats.set('processing...')
         
         engine = EPXEngine(TARGET_EXT)
-        result = engine.process(self.var_dirpath.get())
+        result = engine.process(self.var_dirpath.get(),
+                    self.Indicator(self.pbar))
+        
         engine.write_report(result)
-
         self.var_opsstats.set('done')
         self._fsm.done(result=result)
     

@@ -193,7 +193,7 @@ class EPXEngine(object):
             except:
                 pass
             
-        result = _(dirpath=dirpath, errors=[], failed=[], passed=[], lines=[])
+        result = _(dirpath=dirpath, errors=[], failed=[], passed=[], lines=[], pos=0)
         pInd = (indicator or HallowIndicator())
         try:
             filenames = self._listdir(dirpath)
@@ -238,7 +238,9 @@ class EPXEngine(object):
         for label in ["passed"]:
             if result[label]:
                 dirdest = os.path.join(dirpath, "_%s" % label)
-                self._move_files(result[label], dirpath, dirdest, result)
+                files_chunk = result[label][result.pos:]
+                self._move_files(files_chunk, dirdest, result)
+                result.pos += len(files_chunk)
 
     def _process_file(self, filename, result):
         dirpath, passed = (result.dirpath, False)
@@ -270,13 +272,14 @@ class EPXEngine(object):
             filenames.append(f)
         return filenames
     
-    def _move_files(self, files, dirpath, dirdest, result):
+    def _move_files(self, files, dirdest, result):
+        dirpath = result.dirpath
         if not os.path.exists(dirdest):
             try:
                 os.mkdir(dirdest)
             except Exception as ex:
                 err_msg = "Unabled to create directory. (Error: %s)"
-                result.errors.flush.append(err_msg % str(ex))
+                result.errors.append(err_msg % str(ex))
         
         if files and os.path.exists(dirdest):
             for f in files:
@@ -284,5 +287,5 @@ class EPXEngine(object):
                     shutil.move(os.path.join(dirpath, f), dirdest)
                 except Exception as ex:
                     err_msg = "Unable to move file. (Error: %s)"
-                    result.errors.flush.append(err_msg % str(ex))
+                    result.errors.append(err_msg % str(ex))
     
