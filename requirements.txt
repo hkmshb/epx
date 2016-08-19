@@ -1,2 +1,4 @@
 dolfin==0.2
 fysom==2.1.2
+jinja2==2.8
+pyinstaller==3.2
